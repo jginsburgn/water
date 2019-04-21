@@ -65,6 +65,7 @@
     "brace-style": [
       true,
       "stroustrup"
-    ]
+    ],
+    "no-consecutive-blank-lines": true
   }
 }

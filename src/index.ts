@@ -1,15 +1,9 @@
-import * as Three from "three";
-import { subscribeToAnimationLoop, scene } from "./general";
+import "./SPH/Particle";
 
-const light = new Three.PointLight(0xFFFFFF);
-light.position.set(0, 30, 0);
-scene.add(light);
+import * as Three from "three";
+import { scene } from "./general";
 
 const ballGeometry = new Three.SphereGeometry();
-const material = new Three.MeshPhongMaterial({ color: 0x00FFFF });
+const material = new Three.MeshBasicMaterial({ color: 0xFFFFFF, opacity: 0.5 });
 const ball = new Three.Mesh(ballGeometry, material);
 scene.add(ball);
-
-subscribeToAnimationLoop(() => {
-  ball.position.setX(ball.position.x + 0.01);
-});
