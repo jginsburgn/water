@@ -1,22 +1,38 @@
-import { Object3D, Vector3 } from "three";
+import { Object3D, Vector3, MeshBasicMaterial, Mesh, SphereGeometry } from "three";
 import { Fluid } from "./Fluid";
+import { subscribeToAnimationLoop } from "../general";
 
 export type Particles = Array<Particle>;
 
 export class Particle extends Object3D {
-  // TODO: Add constructor to create a sphere
 
-  static readonly VISCOSITY_COEFFICIENT: number = 1;
-  static readonly DENSITY_COEFFICIENT: number = 1;
-  static readonly BASE_DENSITY: number = 1;
-  static readonly SMOOTHING_RADIUS: number = 1;
+  // Physical properties
+  static readonly VISCOSITY_COEFFICIENT: number = 5; // µ
+  static readonly DENSITY_COEFFICIENT /*aka stiffness*/: number = 10; // k
+  static readonly BASE_DENSITY: number = 998; // ρ_0
+  static readonly SMOOTHING_RADIUS: number = 16; // h
+
+  // Mathematical shortcuts
   static readonly SPH_DENSITY_COEFFICIENT: number = 315 / (64 * Math.PI * Particle.SMOOTHING_RADIUS ** 9);
   static readonly SPH_PRESSURE_GRADIENT_COEFFICIENT: number = -45 / (Math.PI * Particle.SMOOTHING_RADIUS ** 6);
   static readonly SPH_VISCOSITY_COEFFICIENT: number = - Particle.SPH_PRESSURE_GRADIENT_COEFFICIENT;
 
+  // Drawing matters
+  static readonly PARTICLE_RADIUS: number = Particle.SMOOTHING_RADIUS / 2;
+  static readonly GEOMETRY = new SphereGeometry(Particle.PARTICLE_RADIUS * 0.3);
+  static readonly MATERIAL = new MeshBasicMaterial({color: 0x2FA1D6, opacity: 0.5, transparent: true});
+  static readonly MESH = new Mesh(Particle.GEOMETRY, Particle.MATERIAL);
+
   fluid: Fluid = undefined;
-  mass: number = 0;
+  mass: number = 500 * .13;
   velocity: Vector3 = new Vector3();
+
+  constructor(fluid: Fluid) {
+    super();
+    this.fluid = fluid;
+    this.add(Particle.MESH.clone());
+    subscribeToAnimationLoop((at, td) => { this.step(at, td) });
+  }
 
   withinSmoothingRadius(position: Vector3): boolean {
     return this.distanceTo(position) < Particle.SMOOTHING_RADIUS;
@@ -32,7 +48,9 @@ export class Particle extends Object3D {
   }
 
   getDensity(): number {
-    return this.getNeighborhood().reduce(
+    const neighborhood = this.getNeighborhood();
+    neighborhood.push(this);
+    const density = neighborhood.reduce(
       (accumulated, current) => {
         const distance = this.distanceTo(current.position);
         const mass = current.mass;
@@ -41,15 +59,17 @@ export class Particle extends Object3D {
       },
       0
     );
+    return density;
   }
 
   getPressure(): number {
-    return Particle.DENSITY_COEFFICIENT * (this.getDensity() - Particle.BASE_DENSITY);
+    const pressure = Particle.DENSITY_COEFFICIENT * (this.getDensity() - Particle.BASE_DENSITY);
+    return pressure;
   }
 
-  getExternalForce(): Vector3 {
+  getExternalForceTerm(): Vector3 {
     // Gravity for now
-    return new Vector3(0, -9.81, 0);
+    return new Vector3(0, -120000 * 9.82 * this.getDensity(), 0);
   }
 
   getPressureGradientTerm(): Vector3 {
@@ -69,7 +89,7 @@ export class Particle extends Object3D {
   }
 
   getViscousTerm(): Vector3 {
-    return this.getNeighborhood().reduce(
+    const viscousTerm = this.getNeighborhood().reduce(
       (accumulated, current) => {
         const distance = this.distanceTo(current.position);
         const mass = current.mass;
@@ -81,20 +101,31 @@ export class Particle extends Object3D {
         return accumulated.add(contribution);
       },
       new Vector3()
-    ).multiplyScalar(Particle.VISCOSITY_COEFFICIENT / this.getDensity());
+    );
+    viscousTerm.multiplyScalar(Particle.VISCOSITY_COEFFICIENT / this.getDensity());
+    return viscousTerm;
   }
 
   getAcceleration(): Vector3 {
     const acceleration = new Vector3();
-    acceleration.add(this.getExternalForce());
-    acceleration.sub(this.getPressureGradientTerm());
-    acceleration.add(this.getViscousTerm());
+    const externalForceTerm = this.getExternalForceTerm();
+    const pressureGradientTerm = this.getPressureGradientTerm();
+    const viscousTerm = this.getViscousTerm();
+    acceleration.add(externalForceTerm);
+    acceleration.sub(pressureGradientTerm);
+    acceleration.add(viscousTerm);
     return acceleration;
   }
 
-  step(timeChange: number) {
+  step(absoluteAccumulatedTime: number, timeDifference: number) {
     // TODO: Implement boundary conditions
-    this.velocity.add(this.getAcceleration().multiplyScalar(timeChange));
-    this.position.add(this.velocity.clone().multiplyScalar(timeChange));
+    const newVelocity = this.velocity.clone().add(this.getAcceleration().multiplyScalar(0.006));
+    const newPosition = this.position.clone().add(this.velocity.clone().multiplyScalar(0.006));
+    // Temporary floor boundary condition
+    if (newPosition.y < -10) {
+      newVelocity.multiplyScalar(-0.8);
+    }
+    this.velocity.copy(newVelocity);
+    this.position.copy(newPosition);
   }
 }

@@ -6,18 +6,27 @@ interface AnimationLoopSubscriber {
   (absoluteAccumulatedTime: number, timeDifference: number): any;
 }
 
+enum AnimationState {
+  Animating,
+  Paused,
+  Step,
+}
+
 const { width, height } = getWidthAndHeight();
 const ratio = width / height;
 
 let renderer: Three.WebGLRenderer = new Three.WebGLRenderer();
 let scene: Three.Scene = new Three.Scene();
 let camera = new Three.PerspectiveCamera(17, ratio, 0.1, 10000);
-let absoluteAccumulatedTime: number = 0;
+let absoluteAnimatedTime: number = 0;
+let absolutePausedTime: number = 0;
+
+let animationState = AnimationState.Paused;
 
 let subscribers: AnimationLoopSubscriber[] = [];
 
 $(function () {
-  camera.position.set(0, 0, 30);
+  camera.position.set(0, 0, 100);
   camera.lookAt(0, 0, 0);
 
   const controls = new OrbitControls( camera );
@@ -26,14 +35,34 @@ $(function () {
   updateViewport();
   $("#canvas-container").append(renderer.domElement);
   renderer.setAnimationLoop(animationLoop);
+
+  $(window).keypress((event) => {
+    if (event.key == "n") {
+      animationState = AnimationState.Step;
+    }
+    else if (event.key == "r") {
+      animationState = AnimationState.Animating;
+    }
+    else if (event.key == "p") {
+      animationState = AnimationState.Paused;
+    }
+  });
 });
 
 function animationLoop(accumulatedTime) {
-  const timeDifference = accumulatedTime - absoluteAccumulatedTime;
-  for (let f of subscribers) {
-    f(absoluteAccumulatedTime, timeDifference);
+  const timeDifference = accumulatedTime - (absoluteAnimatedTime + absolutePausedTime);
+  if (animationState == AnimationState.Paused) {
+    absolutePausedTime += timeDifference;
   }
-  absoluteAccumulatedTime = accumulatedTime;
+  else {
+    for (let f of subscribers) {
+      f(absoluteAnimatedTime, timeDifference);
+    }
+    absoluteAnimatedTime += timeDifference;
+    if (animationState == AnimationState.Step) {
+      animationState = AnimationState.Paused;
+    }
+  }
   renderer.render(scene, camera);
 }
 

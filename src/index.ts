@@ -1,9 +1,7 @@
 import "./SPH/Particle";
 
-import * as Three from "three";
 import { scene } from "./general";
+import { Fluid } from "./SPH/Fluid";
 
-const ballGeometry = new Three.SphereGeometry();
-const material = new Three.MeshBasicMaterial({ color: 0xFFFFFF, opacity: 0.5 });
-const ball = new Three.Mesh(ballGeometry, material);
-scene.add(ball);
+const fluid = new Fluid();
+scene.add(fluid);
