@@ -1,6 +1,6 @@
 # Water
 
-#### https://github.com/jginsburgn/water
+[View Live](https://jginsburgn.github.io/water/)
 
 This project is intended to be a fluid simulator based on the Smoothed Particle Hydrodynamics technique.
 
