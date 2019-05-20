@@ -21,7 +21,7 @@ let camera = new Three.PerspectiveCamera(17, ratio, 0.1, 10000);
 let absoluteAnimatedTime: number = 0;
 let absolutePausedTime: number = 0;
 
-let animationState = AnimationState.Paused;
+let animationState = AnimationState.Animating;
 
 let subscribers: AnimationLoopSubscriber[] = [];
 
