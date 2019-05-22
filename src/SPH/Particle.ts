@@ -6,6 +6,7 @@ export type Particles = Array<Particle>;
 export class Particle extends Object3D {
 
   // Physical properties
+  static readonly TIME_CHANGE: number = 0.005; // For numerical integration
   static readonly VISCOSITY_COEFFICIENT: number = 0.5; // µ
   static readonly DENSITY_COEFFICIENT /*aka stiffness*/: number = 10; // k
   static readonly BASE_DENSITY: number = 0.2; // ρ_0
@@ -161,8 +162,12 @@ export class Particle extends Object3D {
   }
 
   step(absoluteAccumulatedTime: number, timeDifference: number) {
+    // Time change shortcut
+    const tc = Particle.TIME_CHANGE;
+
     // Velocity
-    const newVelocity = this.velocity.clone().add(this.getAcceleration().multiplyScalar(0.005));
+    const velocityChange = this.getAcceleration().multiplyScalar(tc);
+    const newVelocity = this.velocity.clone().add(velocityChange);
 
     // Speed limit
     const speed = newVelocity.length();
@@ -172,7 +177,8 @@ export class Particle extends Object3D {
     }
 
     // Position
-    const newPosition = this.position.clone().add(this.velocity.clone().multiplyScalar(0.005));
+    const positionChange = this.velocity.clone().multiplyScalar(tc);
+    const newPosition = this.position.clone().add(positionChange);
 
     // Boundary conditions
     const xCondition = newPosition.x < -50 || newPosition.x > 55;
@@ -183,7 +189,7 @@ export class Particle extends Object3D {
     if (yCondition) {
       newVelocity.setY(-0.6 * newVelocity.y);
     }
-    const zCondition = newPosition.z < 0 || newPosition.z > 5;
+    const zCondition = newPosition.z < 0 || newPosition.z > 30;
     if (zCondition) {
       newVelocity.setZ(-1 * newVelocity.z);
     }
